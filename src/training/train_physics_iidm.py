@@ -11,6 +11,8 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, '/DATA/raghvendra3088/Physics-Informed-IIDM')
+from src.models.physics_loss import PhysicsInformedLoss
 
 
 class PatchDataset(Dataset):
@@ -165,6 +167,14 @@ def main():
 
             diff = (eps_pred - eps).abs() * mask
             loss = diff.sum() / (mask.sum() + 1e-8)
+
+            # ── Physics-Informed Loss (PIDM-style, optional) ──────────────
+            if args.use_physics_loss:
+                canopy_h  = x[:, 5:6, :, :]          # ch5 = canopy height
+                sigma_t   = (1 - ab).sqrt().mean().item()  # noise level at t
+                phys_loss = phys_criterion(y0, canopy_h, sigma_t)
+                loss      = loss + phys_loss
+            # ─────────────────────────────────────────────────────────────
 
             optimizer.zero_grad()
             loss.backward()
