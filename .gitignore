@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 *.zip
 .ipynb_checkpoints/
+data_base_readonly/
