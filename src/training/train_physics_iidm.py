@@ -112,13 +112,20 @@ def main():
     from src.models.vgg19_full   import KDVGGStudent16, VGG19_STUDENT_CH_16
     from src.models.base_kd_unet import BaseKDUNet, UNET_CH
 
-    student = KDVGGStudent16(in_channels=6).to(device)
-    block_ckpt = 'checkpoints/blockwise_kd.pth'
-    assert os.path.exists(block_ckpt), f"Run train_blockwise_kd.py first! Missing: {block_ckpt}"
-    student.load_state_dict(torch.load(block_ckpt, map_location=device)['student'])
-
-    COND_CH = VGG19_STUDENT_CH_16[-1]
+    if args.use_swin:
+        from src.models.swin_encoder import SwinEncoder
+        student = SwinEncoder(in_chans=6, out_ch=256, pretrained=True).to(device)
+        COND_CH = 256
+        print("Encoder: Swin-Base (Physics-Informed IIDM)")
+    else:
+        student = KDVGGStudent16(in_channels=6).to(device)
+        block_ckpt = 'checkpoints/blockwise_kd.pth'
+        assert os.path.exists(block_ckpt), f"Run train_blockwise_kd.py first! Missing: {block_ckpt}"
+        student.load_state_dict(torch.load(block_ckpt, map_location=device)['student'])
+        COND_CH = VGG19_STUDENT_CH_16[-1]
+        print(f"Encoder: VGG19 Student (COND_CH={COND_CH})")
     unet = BaseKDUNet(in_ch=COND_CH + 1, cond_ch=COND_CH).to(device)
+    phys_criterion = PhysicsInformedLoss(lambda_phys=args.lambda_phys).to(device)
 
     params = (list(student.parameters()) +
               list(unet.parameters()))
