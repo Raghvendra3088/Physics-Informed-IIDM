@@ -80,7 +80,7 @@ def ddim_sample(unet, f0_up, alpha_bar, T, device, n_steps=20, seed=42):
 def main():
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument('--patch_dir',  default='data/processed/patches_v2')
+    p.add_argument('--patch_dir',  default='data_base_readonly/processed/patches')
     p.add_argument('--epochs',     type=int,   default=100)
     p.add_argument('--batch_size', type=int,   default=4)
     p.add_argument('--lr',         type=float, default=2e-4)
@@ -89,6 +89,10 @@ def main():
     p.add_argument('--save_dir',   default='checkpoints/base_paper')
     p.add_argument('--log_path',   default='logs/base_paper_train.log')
     p.add_argument('--resume',     action='store_true')
+    p.add_argument('--data_root',      default='data_base_readonly/processed/patches')
+    p.add_argument('--use_swin',       action='store_true')
+    p.add_argument('--use_physics_loss', action='store_true')
+    p.add_argument('--lambda_phys',    type=float, default=0.05)
     args = p.parse_args()
 
     os.makedirs(args.save_dir, exist_ok=True)
