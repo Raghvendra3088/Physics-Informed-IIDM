@@ -14,7 +14,7 @@ sys.path.append(str(ROOT))
 
 from src.models.vae import CarbonVAE
 from src.models.kd_vgg import LightweightStudentEncoder
-from src.models.kd_unet import KDUnet
+from src.models.kd_unet import KDUNet
 from src.models.diffusion import SimpleDiffusionScheduler
 from src.models.pi_ldm import PILDM, compute_physics_loss
 
@@ -53,7 +53,7 @@ def train_pi_ldm(lambda_phys=0.05, epochs=50, batch_size=16, lr=5e-5, seed=42):
     # Initialize components
     vae = CarbonVAE(in_channels=1, latent_channels=4, base_channels=64)
     encoder = LightweightStudentEncoder(in_channels=6)
-    unet = KDUnet(in_channels=4, out_channels=4, context_dim=256)
+    unet = KDUNet(in_channels=4, out_channels=4, context_dim=256)
     scheduler = SimpleDiffusionScheduler(num_train_timesteps=1000)
     
     # Optionally load VAE and Encoder weights if pretrained

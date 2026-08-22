@@ -3,6 +3,10 @@
 # Runs on Anil Server: 172.30.1.14
 # Conda Environment: iidm_venv
 
+# Initialize environment variables
+source ~/.bashrc
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
 # Activate conda
 source /DATA1/anil/iidm_venv/bin/activate
 cd /DATA1/anil/Physics-Informed-IIDM
