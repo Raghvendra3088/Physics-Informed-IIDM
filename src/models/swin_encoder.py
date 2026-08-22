@@ -9,7 +9,7 @@ class SwinEncoder(nn.Module):
             'swin_base_patch4_window7_224',
             pretrained=pretrained,
             in_chans=in_chans,
-            img_size=64,
+            img_size=256,
             num_classes=0,
             features_only=True,
             out_indices=(3,)
@@ -21,8 +21,8 @@ class SwinEncoder(nn.Module):
         )
 
     def forward(self, x):
-        feats = self.swin(x)                        # (B, H, W, C) — channels last
-        f = feats[0].permute(0, 3, 1, 2).contiguous()  # → (B, C, H, W)
+        feats = self.swin(x)
+        f = feats[0].permute(0, 3, 1, 2).contiguous()
         return [self.proj(f)]
 
 
@@ -33,7 +33,7 @@ class SwinEncoderWithSkip(nn.Module):
             'swin_base_patch4_window7_224',
             pretrained=pretrained,
             in_chans=in_chans,
-            img_size=64,
+            img_size=256,
             num_classes=0,
             features_only=True,
             out_indices=(0, 1, 2, 3)
@@ -46,7 +46,6 @@ class SwinEncoderWithSkip(nn.Module):
 
     def forward(self, x):
         feats = self.swin(x)
-        # permute all: (B,H,W,C) → (B,C,H,W)
         feats = [f.permute(0, 3, 1, 2).contiguous() for f in feats]
         feats[-1] = self.proj_last(feats[-1])
         return feats

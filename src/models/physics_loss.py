@@ -24,5 +24,8 @@ class PhysicsInformedLoss(nn.Module):
         R1 = self.allometric_residual(carbon_pred, canopy_h)
         R3 = self.smoothness_residual(carbon_pred)
         R_total = R1 + 0.1*R3
-        sigma_bar = sigma_t / self.c_scale
-        return self.lambda_phys * (R_total / (2*sigma_bar + 1e-8))
+        # Clamp sigma_bar to avoid near-zero division (physics loss explosion)
+        sigma_bar = float(sigma_t) / self.c_scale
+        sigma_bar = max(0.1, min(10.0, sigma_bar))   # clamp as float
+        phys_weight = min(1.0, self.lambda_phys / (2*sigma_bar + 1e-8))
+        return phys_weight * R_total

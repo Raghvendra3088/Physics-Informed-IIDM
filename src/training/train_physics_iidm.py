@@ -80,7 +80,7 @@ def ddim_sample(unet, f0_up, alpha_bar, T, device, n_steps=20, seed=42):
 def main():
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument('--patch_dir',  default='data_base_readonly/processed/patches')
+    p.add_argument('--patch_dir',  default='data/processed/patches')
     p.add_argument('--epochs',     type=int,   default=100)
     p.add_argument('--batch_size', type=int,   default=4)
     p.add_argument('--lr',         type=float, default=2e-4)
@@ -113,10 +113,10 @@ def main():
     from src.models.base_kd_unet import BaseKDUNet, UNET_CH
 
     if args.use_swin:
-        from src.models.swin_encoder import SwinEncoder
-        student = SwinEncoder(in_chans=6, out_ch=256, pretrained=True).to(device)
+        from src.models.swin_moe_encoder import SwinMoEEncoder
+        student = SwinMoEEncoder(in_chans=6, out_ch=256, pretrained=True, n_experts=4).to(device)
         COND_CH = 256
-        print("Encoder: Swin-Base (Physics-Informed IIDM)")
+        print("Encoder: SwinV2-Base + MoE-4 (Physics-Informed IIDM)")
     else:
         student = KDVGGStudent16(in_channels=6).to(device)
         block_ckpt = 'checkpoints/blockwise_kd.pth'
@@ -135,8 +135,8 @@ def main():
 
     # Carbon normalization from norm_stats.json
     # mean=36.20, std=39.78 Mg C/ha
-    C_MIN = 4.816495895385742
-    C_MAX = 129.18380737304688
+    C_MIN = 4.816495895385742    # base IIDM norm_stats match
+    C_MAX = 129.18380737304688   # base IIDM norm_stats match
 
 
     best_rmse   = float('inf')
@@ -223,12 +223,13 @@ def main():
                 y0_pred = (y_t_v - (1 - ab_v).sqrt() * eps_p) / (ab_v.sqrt() + 1e-8)
                 y0_pred = y0_pred.clamp(-1, 1)
 
+                mask_np = mask.cpu().numpy() > 0          # (B,1,H,W) bool
                 pred_mg = (y0_pred.cpu().numpy() * 0.5 + 0.5) * (C_MAX - C_MIN) + C_MIN
-                gt_mg   = (y0.cpu().numpy() * 0.5 + 0.5) * (C_MAX - C_MIN) + C_MIN
-                m_np    = mask.cpu().numpy().astype(bool)
-
-                all_pred.append(pred_mg[m_np])
-                all_gt.append(gt_mg[m_np])
+                gt_mg   = (y0.cpu().numpy()      * 0.5 + 0.5) * (C_MAX - C_MIN) + C_MIN
+                pred_mg = pred_mg[mask_np]        # only valid pixels
+                gt_mg   = gt_mg[mask_np]
+                all_pred.append(pred_mg)
+                all_gt.append(gt_mg)
 
         all_pred = np.concatenate(all_pred)
         all_gt   = np.concatenate(all_gt)
