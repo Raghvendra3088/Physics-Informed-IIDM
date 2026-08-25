@@ -14,28 +14,28 @@ sys.path.append(str(ROOT))
 
 from src.models.vae import CarbonVAE
 from src.models.kd_vgg import LightweightStudentEncoder
-from src.models.kd_unet import KDUnet
-from src.models.diffusion import SimpleDiffusionScheduler
+from src.models.kd_unet import KDUNet
+from src.models.diffusion import DiffusionScheduler
 from src.models.pi_ldm import PILDM, compute_physics_loss
 
 class PILdmDataset(Dataset):
     def __init__(self, split="train"):
-        self.inp_dir = ROOT / "data" / "processed" / "patches_6ch" / split / "input"
-        self.tgt_dir = ROOT / "data" / "processed" / "patches_6ch" / split / "target"
-        
-        self.inp_files = sorted(glob.glob(str(self.inp_dir / "*.npy")))
-        self.tgt_files = sorted(glob.glob(str(self.tgt_dir / "*.npy")))
-        
+        self.data_dir = ROOT / "data" / "processed" / "patches_6ch" / split
+        self.input_files = sorted(glob.glob(str(self.data_dir / "input" / "*.npz")))
+        self.target_files = sorted(glob.glob(str(self.data_dir / "target" / "*.npz")))
+            
     def __len__(self):
-        return len(self.inp_files)
+        return len(self.input_files)
         
     def __getitem__(self, idx):
-        # Input (6, 256, 256), Target (1, 256, 256)
-        inp = np.load(self.inp_files[idx])
-        tgt = np.load(self.tgt_files[idx])
+        with np.load(self.input_files[idx]) as d_in, np.load(self.target_files[idx]) as d_tgt:
+            inp = d_in['image']
+            tgt = d_tgt['image']
+        if len(tgt.shape) == 2:
+            tgt = np.expand_dims(tgt, axis=0)
         return torch.from_numpy(inp).float(), torch.from_numpy(tgt).float()
 
-def train_pi_ldm(lambda_phys=0.05, epochs=50, batch_size=16, lr=5e-5, seed=42):
+def train_pi_ldm(lambda_phys=0.05, epochs=50, batch_size=4, lr=5e-5, seed=42):
     torch.manual_seed(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training PI-LDM (seed={seed}, lambda_phys={lambda_phys}) on {device}")
@@ -52,9 +52,9 @@ def train_pi_ldm(lambda_phys=0.05, epochs=50, batch_size=16, lr=5e-5, seed=42):
     
     # Initialize components
     vae = CarbonVAE(in_channels=1, latent_channels=4, base_channels=64)
-    encoder = LightweightStudentEncoder(in_channels=6)
-    unet = KDUnet(in_channels=4, out_channels=4, context_dim=256)
-    scheduler = SimpleDiffusionScheduler(num_train_timesteps=1000)
+    encoder = LightweightStudentEncoder(in_channels=8)
+    unet = KDUNet(in_channels=4, out_channels=4, context_dim=256)
+    scheduler = DiffusionScheduler(T=1000, device=device)
     
     # Optionally load VAE and Encoder weights if pretrained
     vae_ckpt = ROOT / "results" / "checkpoints" / "vae_best.pt"
@@ -84,7 +84,7 @@ def train_pi_ldm(lambda_phys=0.05, epochs=50, batch_size=16, lr=5e-5, seed=42):
             inp.requires_grad_(True)
             
             B = inp.shape[0]
-            t = torch.randint(0, scheduler.num_train_timesteps, (B,), device=device).long()
+            t = torch.randint(0, scheduler.T, (B,), device=device).long()
             
             optimizer.zero_grad()
             

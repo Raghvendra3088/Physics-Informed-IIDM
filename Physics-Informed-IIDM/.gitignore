@@ -1,0 +1,6 @@
+
+results/checkpoints/
+data/processed/
+*.npz
+*.npy
+*.pt
